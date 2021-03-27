@@ -1,7 +1,8 @@
 ---
 ---
 
-@import 'jekyll-theme-cayman';
+@import "{{ site.theme }}";
+
 header {
   display: none;
 }
