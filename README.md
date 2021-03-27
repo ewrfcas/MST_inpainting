@@ -1,4 +1,5 @@
 # Learning a Sketch Tensor Space for Image Inpainting of Man-made Scenes
+
 [Chenjie Cao](https://github.com/ewrfcas),
 [Yanwei Fu](http://yanweifu.github.io/)
 
