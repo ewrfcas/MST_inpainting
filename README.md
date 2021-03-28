@@ -12,3 +12,7 @@ Then the model recover the masked images by the ST space.
 
 ## Object Removal Examples
 ![Object removal video](assets/video.gif)
+
+## Comparisons
+![ST](assets/shanghaitech_comparisons.png)
+![Places2](assets/places2_comparisons.png)
