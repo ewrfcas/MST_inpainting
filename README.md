@@ -4,6 +4,8 @@
 [Yanwei Fu](http://yanweifu.github.io/)
 
 ![teaser](assets/teaser_new.png)
+[arXiv] | [Project Page](https://ewrfcas.github.io/MST_inpainting/)
+
 
 ## Overview
 ![teaser](assets/overview_new1.png)
