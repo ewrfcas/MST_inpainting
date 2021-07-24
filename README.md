@@ -19,7 +19,7 @@ Then the model recover the masked images by the ST space.
 
 ### Preparation
 1. Preparing the environment. 
-2. Download the pretrained masked wireframe detection model [LSM-HAWP](https://drive.google.com/drive/folders/1yg4Nc20D34sON0Ni_IOezjJCFHXKGWUW?usp=sharing) (retrained from [HAWP CVPR2020](https://github.com/cherubicXN/hawp))
+2. Download the pretrained masked wireframe detection model [LSM-HAWP](https://drive.google.com/drive/folders/1yg4Nc20D34sON0Ni_IOezjJCFHXKGWUW?usp=sharing) (retrained from [HAWP CVPR2020](https://github.com/cherubicXN/hawp)).
 3. Download weights for different requires to the 'check_points' fold. 
    [P2M](https://drive.google.com/drive/folders/1uQAzfYvRIAE-aSpYRJbJo-2vBiwit0TK?usp=sharing) (Man-made Places2), 
    [P2C](https://drive.google.com/drive/folders/1td0SNBdSdzMdj4Ei_GnMmglFYOgwUcM0?usp=sharing) (Comprehensive Places2), 
@@ -27,7 +27,10 @@ Then the model recover the masked images by the ST space.
    
 ### Test for a single image
 ```
-python test_single.py --gpu_id 0 --PATH ./check_points/MST_P2C --image_path <your image path> --mask_path <your mask path, 0 means valid and 255 means masked>
+python test_single.py --gpu_id 0 \
+                      --PATH ./check_points/MST_P2C \
+                      --image_path <your image path> \
+                      --mask_path <your mask path (0 means valid and 255 means masked)>
 ```
 
 ## Object Removal Examples
