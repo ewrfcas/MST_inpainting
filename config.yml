@@ -1,0 +1,6 @@
+SEED: 42            # random seed
+valid_th: 0.85 # shanghaitech:0.95, places2:0.85
+mask_th: 0.8 # shanghaitech:0.95, places2:0.8
+hawp_size: 512
+img_size: 256
+lsm_hawp_ckpt: ./check_points/LSM_HAWP/best_lsm_hawp.pth
