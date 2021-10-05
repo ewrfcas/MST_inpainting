@@ -1,12 +1,12 @@
-import os
 import argparse
+import os
 import random
 
 import numpy as np
 import torch
 
-from src.MST_model import MST
-from src.config import Config
+from src.model_inference import MST
+from utils.utils import Config
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

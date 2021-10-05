@@ -55,6 +55,26 @@ class GateConv(nn.Module):
         return x * torch.sigmoid(g)
 
 
+class Conv(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, transpose=False,
+                 use_spectral_norm=False):
+        super(Conv, self).__init__()
+        self.out_channels = out_channels
+        if transpose:
+            self.conv = nn.ConvTranspose2d(in_channels, out_channels,
+                                           kernel_size=kernel_size, stride=stride,
+                                           padding=padding, bias=not use_spectral_norm)
+        else:
+            self.conv = nn.Conv2d(in_channels, out_channels,
+                                  kernel_size=kernel_size, stride=stride,
+                                  padding=padding, bias=not use_spectral_norm)
+        if use_spectral_norm:
+            self.conv = spectral_norm(self.conv)
+
+    def forward(self, x):
+        return self.conv(x)
+
+
 class SNGateConv(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, dilation=1,
                  transpose=False):
@@ -128,7 +148,7 @@ class SeparableDecoder(nn.Module):
         att = self.att_head(emb)
         x_combine = e * att + l * (1 - att)
         rgb = self.to_rgb(x_combine)
-        rgb = (rgb + 1) / 2
+        # rgb = (rgb + 1) / 2
         if self.proj:
             x_out = torch.cat([x, x_combine], dim=1)  # deconv_ch+emb
             x_out = self.proj(x_out)

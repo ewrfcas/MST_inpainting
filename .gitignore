@@ -1,2 +1,4 @@
 /check_points/
 /data/
+/command
+/training_configs/config_MST_indoor.yml
