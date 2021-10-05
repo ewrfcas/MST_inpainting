@@ -32,7 +32,7 @@ Since the training code is rewritten, there are some differences compared with t
 
 > 1. Training uses src/models.py while testing uses src/model_inference.py.
 > 
-> 2. Image are valued in -1 to 1 (Training) and 0 to 1 (testing).
+> 2. Image are valued in -1 to 1 (training) and 0 to 1 (testing).
 > 
 > 3. Masks are always concated to the inputs.
 
