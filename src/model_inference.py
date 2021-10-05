@@ -32,8 +32,7 @@ class InpaintingModel(BaseModel):
         self.input_channel = input_channel
         generator = InpaintGateGenerator(input_channel=input_channel,
                                          inpaint_attention=False)
-        print('Decoder:')
-        torch_show_all_params(generator)
+        print('Decoder Params:', torch_show_all_params(generator))
         generator = generator.to(config.DEVICE)
 
         self.add_module('generator', generator)
@@ -54,8 +53,7 @@ class SharedWEModel(BaseModel):
 
         self.model = config.MODEL
         generator = SWEGenerator(input_channel=input_channel)
-        print('Encoder:')
-        torch_show_all_params(generator)
+        print('Encoder Params:', torch_show_all_params(generator))
 
         generator = generator.to(config.DEVICE)
 
@@ -420,11 +418,11 @@ class MST:
 
         images = stitch_images(
             self.postprocess(items['img']),
-            self.postprocess(inputs),
-            self.postprocess(lines_preds),
-            self.postprocess(edges_pred),
-            self.postprocess(lines_edges_pred),
-            self.postprocess(outputs_merged),
+            [self.postprocess(inputs),
+             self.postprocess(lines_preds),
+             self.postprocess(edges_pred),
+             self.postprocess(lines_edges_pred),
+             self.postprocess(outputs_merged)],
             img_per_row=1
         )
 
