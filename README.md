@@ -3,6 +3,8 @@
 [Chenjie Cao](https://github.com/ewrfcas),
 [Yanwei Fu](http://yanweifu.github.io/)
 
+[![LICENSE](https://img.shields.io/github/license/ewrfcas/MST_inpainting)](https://github.com/ewrfcas/MST_inpainting/blob/main/LICENSE)
+
 ![teaser](assets/teaser_new.png)
 [arXiv](https://arxiv.org/abs/2103.15087) | [Project Page](https://ewrfcas.github.io/MST_inpainting/)
 
