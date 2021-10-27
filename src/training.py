@@ -104,9 +104,9 @@ def load_model(model, g_opt, d_opt, g_sche, d_sche, amp=None):
             if model.config.restore:
                 g_opt.load_state_dict(data['g_opt'])
             model.iteration = data['iteration']
-            for _ in range(model.iteration):
-                g_sche.step()
-                d_sche.step()
+            # for _ in range(model.iteration):
+            #     g_sche.step()
+            #     d_sche.step()
         else:
             print(g_path, 'not Found')
             raise FileNotFoundError
