@@ -1,9 +1,10 @@
 import os
 
+import torch.optim as optim
+
 from src.discriminators import TwinDiscriminator, Discriminator
 from src.layers import *
 from src.loss import AdversarialLoss, VGG19, PerceptualLoss, StyleLoss
-import torch.optim as optim
 from utils.utils import get_lr_schedule_with_steps
 
 try:

@@ -2,7 +2,6 @@ import os
 
 import torch
 
-
 try:
     from apex import amp
 

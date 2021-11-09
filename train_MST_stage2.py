@@ -9,9 +9,9 @@ import numpy as np
 import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data.sampler import RandomSampler
+from tqdm import tqdm
 
 from src.dataloader import LSMDataset
 from src.lsm_hawp.detector import WireframeDetector, hawp_inference_test
