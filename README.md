@@ -51,7 +51,6 @@ python train_MST_stage1.py --path <model_name> --config training_configs/config_
 python train_MST_stage2.py --path <model_name> --config training_configs/config_MST.yml --gpu 0
 ```
 
-> Note: If you use pytorch>1.4, maybe you should optimze discriminator loss for real and fake samples separately. 
 
 ### Test for a single image
 ```

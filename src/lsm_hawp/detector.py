@@ -309,6 +309,7 @@ def hawp_inference_test(lsm_hawp, images, masks, hawp_mean, hawp_std, device,
                         lmap[rr, cc] = np.maximum(lmap[rr, cc], value)
             else:
                 for line, score in zip(lines_masked, scores_masked):
+                    line = np.clip(line, 0, 255)
                     if score > mask_th:
                         rr, cc, value = skimage.draw.line_aa(*to_int(line[0:2]), *to_int(line[2:4]))
                         lmap[rr, cc] = np.maximum(lmap[rr, cc], value)

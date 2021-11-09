@@ -12,7 +12,6 @@ def get_conv(conv_type):
     else:
         raise NotImplementedError
 
-
 class Discriminator(nn.Module):
     def __init__(self, config, in_channels):
         super(Discriminator, self).__init__()

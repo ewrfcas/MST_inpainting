@@ -9,12 +9,15 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import torch.distributed as dist
+from torch.utils.data.distributed import DistributedSampler
+from torch.utils.data.sampler import RandomSampler
 
 from src.dataloader import LSMDataset
 from src.lsm_hawp.detector import WireframeDetector, hawp_inference_test
 from src.metrics import EdgeAccuracy
 from src.models import SharedWEModel
-from src.training import backward, get_opt, convert_fp16, save_model, load_model
+from src.training import save_model, load_model
 from utils.logger import setup_logger
 from utils.utils import Config, Progbar, to_cuda, postprocess, stitch_images, torch_show_all_params
 
@@ -23,6 +26,8 @@ if __name__ == '__main__':
     parser.add_argument('--path', type=str, required=True, help='model checkpoints path')
     parser.add_argument('--config', type=str, required=True, help='model config path')
     parser.add_argument('--gpu', type=str, required=True, help='gpu ids')
+    parser.add_argument('--local_rank', type=int, default=-1, help='the id of this machine')
+    parser.add_argument('--nodes', type=int, default=1, help='how many machines')
 
     args = parser.parse_args()
     args.path = os.path.join('check_points', args.path)
@@ -44,21 +49,35 @@ if __name__ == '__main__':
     # cuda visble devices
     os.environ['CUDA_VISIBLE_DEVICES'] = config.gpu_ids
     n_gpu = torch.cuda.device_count()
+    if n_gpu > 1:
+        config.world_size = args.nodes * n_gpu
+        os.environ['MASTER_ADDR'] = 'localhost'
+        os.environ['MASTER_PORT'] = '12380'
+
+        dist.init_process_group(backend="nccl")
+        local_rank = torch.distributed.get_rank()
+    else:
+        config.world_size = 1
+        local_rank = 0
 
     # init device
     if torch.cuda.is_available():
+        torch.cuda.set_device(local_rank)
         config.device = torch.device("cuda")
         torch.backends.cudnn.benchmark = True  # cudnn auto-tuner
     else:
         config.device = torch.device("cpu")
 
-    log_file = 'log-{}.txt'.format(time.time())
-    logger = setup_logger(os.path.join(args.path, 'logs'), logfile_name=log_file)
-    for k in config._dict:
-        logger.info("{}:{}".format(k, config._dict[k]))
+    if local_rank == 0:
+        log_file = 'log-{}.txt'.format(time.time())
+        logger = setup_logger(os.path.join(args.path, 'logs'), logfile_name=log_file)
+        for k in config._dict:
+            logger.info("{}:{}".format(k, config._dict[k]))
 
-    # save samples and eval pictures
-    os.makedirs(os.path.join(args.path, 'samples_stage1'), exist_ok=True)
+        # save samples and eval pictures
+        os.makedirs(os.path.join(args.path, 'samples_stage1'), exist_ok=True)
+    else:
+        logger = None
 
     # set cv2 running threads to 1 (prevents deadlocks with pytorch dataloader)
     cv2.setNumThreads(0)
@@ -77,12 +96,18 @@ if __name__ == '__main__':
                                irr_mask_path=config.irregular_path, seg_mask_path=config.train_seg_path,
                                wireframe_mask_rate=config.wireframe_mask_rate, hawp_th=config.hawp_th,
                                training=True)
+    if n_gpu > 1:
+        train_sampler = DistributedSampler(train_dataset, num_replicas=config.world_size,
+                                           rank=local_rank, shuffle=True)
+    else:
+        train_sampler = RandomSampler(train_dataset)
+
     train_loader = DataLoader(
         dataset=train_dataset,
-        batch_size=config.batch_size,
+        batch_size=config.batch_size // config.world_size,
         num_workers=12,
-        shuffle=True,
         drop_last=True,
+        sampler=train_sampler,
         collate_fn=train_dataset.collate_fn
     )
     val_dataset = LSMDataset(config, config.data_flist[config.dataset]['val'],
@@ -99,30 +124,32 @@ if __name__ == '__main__':
     sample_iterator = val_dataset.create_iterator(config.sample_size)
 
     model = SharedWEModel(config, input_channel=6, image_output_channel=3)
+    model, amp = load_model(model, amp=None)
     lsm_hawp = WireframeDetector(is_cuda=True if str(config.device) != 'cpu' else False)
     lsm_hawp = lsm_hawp.to(config.device)
-    lsm_hawp.load_state_dict(torch.load(config.lsm_hawp_ckpt)['model'])
+    lsm_hawp.load_state_dict(torch.load(config.lsm_hawp_ckpt, map_location='cpu')['model'])
     hawp_mean = torch.tensor([109.730, 103.832, 98.681]).to(config.device).reshape(1, 3, 1, 1)
     hawp_std = torch.tensor([22.275, 22.124, 23.229]).to(config.device).reshape(1, 3, 1, 1)
-    g_opt, d_opt, g_sche, d_sche = get_opt(config, model, drop_steps=config.drop_steps_stage1)
-    if config.float16:
-        model, g_opt, d_opt, amp = convert_fp16(model, g_opt, d_opt)
-    else:
-        amp = None
-    model, g_opt, d_opt, g_sche, d_sche, amp = load_model(model, g_opt, d_opt, g_sche, d_sche, amp=amp)
     steps_per_epoch = len(train_dataset) // config.batch_size
     iteration = model.iteration
     epoch = model.iteration // steps_per_epoch
-    logger.info('Generator Parameters:{}'.format(torch_show_all_params(model.g_model)))
-    logger.info('Discriminator Parameters:{}'.format(torch_show_all_params(model.d_model)))
-    logger.info('Ngpu:{}'.format(n_gpu))
-    logger.info('Start from epoch:{}, iteration:{}'.format(epoch, iteration))
+    if local_rank == 0:
+        logger.info('Generator Parameters:{}'.format(torch_show_all_params(model.g_model)))
+        logger.info('Discriminator Parameters:{}'.format(torch_show_all_params(model.d_model)))
+        logger.info('Ngpu:{}'.format(n_gpu))
+        logger.info('Start from epoch:{}, iteration:{}'.format(epoch, iteration))
 
     if n_gpu > 1:
-        model = torch.nn.DataParallel(model)
-        model_without_ddp = model.module
-    else:
-        model_without_ddp = model
+        if config.float16:
+            from apex.parallel import DistributedDataParallel as DDP
+
+            model.g_model = DDP(model.g_model)
+            model.d_model = DDP(model.d_model)
+        else:
+            from torch.nn.parallel import DistributedDataParallel as DDP
+
+            model.g_model = DDP(model.g_model, device_ids=[local_rank], output_device=local_rank)
+            model.d_model = DDP(model.d_model, device_ids=[local_rank], output_device=local_rank)
 
     model.train()
     keep_training = True
@@ -131,29 +158,26 @@ if __name__ == '__main__':
     best_iteration = 0
     while (keep_training):
         epoch += 1
+        if n_gpu > 1:
+            train_sampler.set_epoch(epoch)  ## Shuffle each epoch
 
         stateful_metrics = ['epoch', 'iter', 'g_lr']
-        progbar = Progbar(len(train_dataset), max_iters=steps_per_epoch,
-                          width=20, stateful_metrics=stateful_metrics)
+        progbar = Progbar(len(train_dataset) // config.world_size, max_iters=steps_per_epoch,
+                          width=20, stateful_metrics=stateful_metrics, verbose=1 if local_rank == 0 else 0)
 
         for items in train_loader:
             model.train()
             items = to_cuda(items, config.device)
             g_loss, d_loss, logs = model.process(items['img'], items['line'], items['edge'],
                                                  items['mask'], items['real_line'])
-            if n_gpu > 1:
-                g_loss = g_loss.mean()
-                d_loss = d_loss.mean()
-            g_opt, d_opt, g_sche, d_sche = backward(g_opt, d_opt, g_sche, d_sche, g_loss, d_loss,
-                                                    float16=config.float16, amp=amp)
             iteration += 1
 
-            logs = [("epoch", epoch), ("iter", iteration), ('g_lr', g_sche.get_lr()[0])] + logs
-            progbar.add(config.batch_size, values=logs)
+            logs = [("epoch", epoch), ("iter", iteration), ('g_lr', model.g_sche.get_lr()[0])] + logs
+            progbar.add(config.batch_size // config.world_size, values=logs)
 
-            if iteration % config.log_iters == 0:
+            if iteration % config.log_iters == 0 and local_rank == 0:
                 logger.debug(str(logs))
-            if iteration % config.sample_iters == 0:
+            if (iteration % config.sample_iters == 0 or iteration == 1) and local_rank == 0:
                 model.eval()
                 with torch.no_grad():
                     items = next(sample_iterator)
@@ -175,7 +199,7 @@ if __name__ == '__main__':
                 print('\nsaving sample {}\n'.format(sample_name))
                 images.save(sample_name)
 
-            if iteration % config.eval_iters == 0:
+            if (iteration % config.eval_iters == 0 or iteration == 1) and local_rank == 0:
                 model.eval()
                 eval_progbar = Progbar(len(val_dataset), width=20)
                 index = 0
@@ -185,16 +209,19 @@ if __name__ == '__main__':
                     for items in tqdm(val_loader):
                         items = to_cuda(items, config.device)
                         # for inference, use lines output from lsm-hawp
-                        items['line'] = hawp_inference_test(lsm_hawp, items['line'], items['mask'],
+                        line_img = items['line'].clone()
+                        items['line'] = hawp_inference_test(lsm_hawp, line_img, items['mask'],
                                                             hawp_mean, hawp_std, config.device,
                                                             config.input_size, obj_remove=False, mask_th=config.hawp_th)
-                        real_lines = hawp_inference_test(lsm_hawp, items['line'], torch.zeros_like(items['mask']),
-                                                        hawp_mean, hawp_std, config.device,
-                                                        config.input_size, obj_remove=False, mask_th=config.hawp_th)
+                        real_lines = hawp_inference_test(lsm_hawp, line_img, torch.zeros_like(items['mask']),
+                                                         hawp_mean, hawp_std, config.device,
+                                                         config.input_size, obj_remove=False, mask_th=config.hawp_th)
                         outputs = model(items['img'], items['line'], items['edge'], items['mask'])
 
-                        edge_p, edge_r, edge_f1 = edge_metric(items['edge'], outputs['edge_out'][-1])
-                        line_p, line_r, line_f1 = edge_metric(real_lines, outputs['line_out'][-1])
+                        edge_p, edge_r, edge_f1 = edge_metric(items['edge'] * items['mask'],
+                                                              outputs['edge_out'][-1] * items['mask'])
+                        line_p, line_r, line_f1 = edge_metric(real_lines * items['mask'],
+                                                              outputs['line_out'][-1] * items['mask'])
 
                         edge_ps.append(edge_p.item())
                         edge_rs.append(edge_r.item())
@@ -223,15 +250,16 @@ if __name__ == '__main__':
                     if best_f1 < average_f1:
                         best_f1 = average_f1
                         best_iteration = iteration
-                        save_model(model_without_ddp, prefix='best_f1', g_opt=g_opt, d_opt=d_opt,
-                                   amp=amp, iteration=iteration)
+                        save_model(model, prefix='best_f1', g_opt=model.g_opt, d_opt=model.d_opt,
+                                   amp=None, iteration=iteration, n_gpu=n_gpu)
 
-            if iteration % config.save_iters == 0:
-                save_model(model_without_ddp, prefix='last', g_opt=g_opt, d_opt=d_opt,
-                           amp=amp, iteration=iteration)
+            if (iteration % config.save_iters == 0 or iteration == 1) and local_rank == 0:
+                save_model(model, prefix='last', g_opt=model.g_opt, d_opt=model.d_opt,
+                           amp=None, iteration=iteration, n_gpu=n_gpu)
 
             if iteration >= config.max_iters_stage1:
                 keep_training = False
                 break
 
-    logger.info('Best F1: {}, Iteration: {}'.format(best_f1, best_iteration))
+    if local_rank == 0:
+        logger.info('Best F1: {}, Iteration: {}'.format(best_f1, best_iteration))
