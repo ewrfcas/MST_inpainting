@@ -50,7 +50,11 @@ CUDA_VISIBLE_DEVICES=0 python lsm_hawp_inference.py --ckpt_path <best_lsm_hawp.p
 python train_MST_stage1.py --path <model_name> --config training_configs/config_MST.yml --gpu 0
 python train_MST_stage2.py --path <model_name> --config training_configs/config_MST.yml --gpu 0
 ```
-
+For DDP training with multi-gpus:
+```
+python -m torch.distributed.launch --nproc_per_node=4 train_MST_stage1.py --path <model_name> --config training_configs/config_MST.yml --gpu 0,1,2,3
+python -m torch.distributed.launch --nproc_per_node=4 train_MST_stage2.py --path <model_name> --config training_configs/config_MST.yml --gpu 0,1,2,3
+```
 
 ### Test for a single image
 ```
