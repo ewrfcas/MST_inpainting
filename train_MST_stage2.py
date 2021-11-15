@@ -159,7 +159,7 @@ if __name__ == '__main__':
 
     model.train()
     keep_training = True
-    best_fid = 0
+    best_fid = 9999
     best_iteration = 0
     while (keep_training):
         epoch += 1
@@ -261,11 +261,11 @@ if __name__ == '__main__':
                         best_fid = score_dict['fid']
                         best_iteration = iteration
                         save_model(model, prefix='best_fid', g_opt=model.g_opt, d_opt=model.d_opt,
-                                   amp=None, iteration=iteration)
+                                   amp=None, iteration=iteration, n_gpu=n_gpu)
 
             if iteration % config.save_iters == 0 and local_rank == 0:
                 save_model(model, prefix='last', g_opt=model.g_opt, d_opt=model.d_opt,
-                           amp=None, iteration=iteration)
+                           amp=None, iteration=iteration, n_gpu=n_gpu)
 
             if iteration >= config.max_iters_stage3:
                 keep_training = False
