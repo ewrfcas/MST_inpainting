@@ -18,7 +18,7 @@ Then the model recover the masked images by the ST space.
 - [x] Release the inference codes.
 - [x] Training codes.
 
-Now, this work has been further improved in [ZITS](https://github.com/DQiaole/ZITS_inpainting)
+**Now, this work has been further improved in [ZITS](https://github.com/DQiaole/ZITS_inpainting) (CVPR2022)**.
 
 [comment]: <> (- [ ] Release the GUI codes.)
 
