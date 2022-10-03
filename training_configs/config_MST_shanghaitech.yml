@@ -1,0 +1,69 @@
+# =========================== GLOBAL Settings ===========================
+float16: False
+seed: 42
+restore: False
+
+# =========================== DATA Settings ===========================
+dataset: 'shanghaitech'  # 'P2C', 'P2M', 'shanghaitech'
+mask_rates: [ 0.4,0.8,1.0 ]
+irregular_path: 'masks/irregular_mask_list.txt'
+train_seg_path: 'masks/coco_mask_list.txt'
+input_size: 256
+flip: True
+center_crop: False
+hawp_th: 0.925 # threshold to get wireframes for training/testing (shanghaitech:0.95, places2:0.85)
+wireframe_mask_rate: 0.7 # rate to mask lines with one masked endpoint during training
+lsm_hawp_ckpt: ./check_points/LSM_HAWP/best_lsm_hawp.pth
+
+# data
+data_flist:
+  indoor:
+    train: '../../indoor/train_238.txt'
+    val: '../../indoor/val_238.txt'
+    test_mask: '../../indoor/test_mask'
+    test_res: '../../indoor/test_256'
+    wireframe_path: '../../indoor_data/train/train_wireframes.pkl'
+
+# =========================== MODEL Settings ===========================
+gan_type: 'nsgan' # 'nsgan', 'hinge'
+norm_type: 'IN'
+dim: 64
+dis_spectral_norm: True
+gen_spectral_norm: False
+econv_type: 'gate' # 'gate', 'normal'
+dconv_type: 'gate' # 'gate', 'normal'
+dis_conv_type: 'normal' # 'gate', 'normal'
+
+# =========================== LOSS Settings stage1 ===========================
+adv_loss_weight: 0.1
+l1_loss_weight: 1.0
+fm_loss_weight: 10
+pyramid_loss_weight: 0.5
+style_loss_weight: 250
+content_loss_weight: 0.1
+vgg_loss_weight: [ 1.0, 1.0, 1.0, 1.0, 1.0 ]
+
+# =========================== Training Settings ===========================
+d_lr: 3e-5
+g_lr: 3e-4
+beta1: 0                    # adam optimizer beta1
+beta2: 0.9                  # adam optimizer beta2
+batch_size: 32
+
+max_iters_stage1: 100000
+drop_steps_stage1: 50000
+
+max_iters_stage2: 50000
+max_iters_stage3: 100000
+drop_steps: 50000
+
+decay_type: 'milestone'
+drop_gamma: 0.5
+
+# =========================== Validation Settings ===========================
+eval_iters: 10000
+save_iters: 10000
+sample_iters: 1000
+sample_size: 16
+log_iters: 100
+save_best: True
